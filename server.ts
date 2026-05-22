@@ -124,6 +124,7 @@ async function startServer() {
         proof_image TEXT,
         status TEXT DEFAULT 'pending',
         rejection_reason TEXT,
+        admin_notes TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY(job_id) REFERENCES jobs(id),
         FOREIGN KEY(user_id) REFERENCES users(id)
@@ -146,7 +147,22 @@ async function startServer() {
         key TEXT PRIMARY KEY,
         value TEXT
       );
+
+      CREATE TABLE IF NOT EXISTS notifications (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        type TEXT,
+        title TEXT,
+        message TEXT,
+        is_read INTEGER DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(user_id) REFERENCES users(id)
+      );
     `);
+
+    // Migrations
+    try { db.prepare("ALTER TABLE proofs ADD COLUMN admin_notes TEXT").run(); } catch(e){}
+
     console.log("Database schema setup complete.");
   } catch (err) {
     console.error("Database schema setup failed:", err);
@@ -527,6 +543,10 @@ async function startServer() {
     const { title, description, category, reward, totalSlots } = req.body;
     db.prepare("INSERT INTO jobs (title, description, category, reward, total_slots) VALUES (?, ?, ?, ?, ?)")
       .run(title, description, category, reward, totalSlots);
+    
+    // Broadcast notification for new job
+    db.prepare("INSERT INTO notifications (user_id, type, title, message) VALUES (NULL, 'new_job', 'New Job Posted', ?)").run(`A new job "${title}" is available for $${reward}.`);
+
     res.json({ success: true });
   });
 
@@ -564,10 +584,16 @@ async function startServer() {
     res.json(proofs);
   });
 
+  app.post("/api/admin/proofs/:id/notes", authenticate, isAdmin, (req, res) => {
+    const { notes } = req.body;
+    db.prepare("UPDATE proofs SET admin_notes = ? WHERE id = ?").run(notes, req.params.id);
+    res.json({ success: true });
+  });
+
   app.post("/api/admin/proofs/:id/approve", authenticate, isAdmin, (req, res) => {
     const proof = db.prepare("SELECT * FROM proofs WHERE id = ?").get(req.params.id);
     if (!proof || proof.status !== 'pending') return res.status(400).json({ error: "Invalid proof" });
-    const job = db.prepare("SELECT reward FROM jobs WHERE id = ?").get(proof.job_id);
+    const job = db.prepare("SELECT title, reward FROM jobs WHERE id = ?").get(proof.job_id);
     db.transaction(() => {
       db.prepare("UPDATE proofs SET status = 'approved' WHERE id = ?").run(req.params.id);
       
@@ -593,6 +619,9 @@ async function startServer() {
         db.prepare("UPDATE users SET balance = balance + ? WHERE id = ?").run(commission, user.referred_by);
         db.prepare("INSERT INTO transactions (user_id, type, amount, status) VALUES (?, 'referral', ?, 'approved')").run(user.referred_by, commission);
       }
+      
+      // Notify user of proof approval
+      db.prepare("INSERT INTO notifications (user_id, type, title, message) VALUES (?, 'proof_approved', 'Proof Approved', ?)").run(proof.user_id, `Your proof for "${job.title}" was approved. You earned $${job.reward}.`);
     })();
     res.json({ success: true });
   });
@@ -666,6 +695,22 @@ async function startServer() {
       return acc;
     }, {});
     res.json(settingsObj);
+  });
+
+  // Notifications
+  app.get("/api/notifications", authenticate, (req: any, res) => {
+    const notifications = db.prepare(`
+      SELECT * FROM notifications 
+      WHERE user_id = ? OR user_id IS NULL
+      ORDER BY created_at DESC 
+      LIMIT 50
+    `).all(req.user.id);
+    res.json(notifications);
+  });
+
+  app.post("/api/notifications/read", authenticate, (req: any, res) => {
+    db.prepare("UPDATE notifications SET is_read = 1 WHERE user_id = ?").run(req.user.id);
+    res.json({ success: true });
   });
 
   // Vite Integration

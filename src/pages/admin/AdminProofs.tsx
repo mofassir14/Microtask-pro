@@ -44,6 +44,24 @@ export default function AdminProofs() {
     fetchProofs();
   };
 
+  const handleSaveNotes = async (id: number, notes: string) => {
+    try {
+      const res = await fetch(`/api/admin/proofs/${id}/notes`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ notes }),
+      });
+      if (res.ok) {
+        setProofs(proofs.map(p => p.id === id ? { ...p, admin_notes: notes } : p));
+      }
+    } catch (err) {
+      console.error('Failed to save notes', err);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-slate-900">Proof Verification</h1>
@@ -57,14 +75,15 @@ export default function AdminProofs() {
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Job</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Proof Details</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Reward</th>
+                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Internal Notes</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
-                <tr><td colSpan={5} className="px-6 py-12 text-center text-slate-400">Loading proofs...</td></tr>
+                <tr><td colSpan={6} className="px-6 py-12 text-center text-slate-400">Loading proofs...</td></tr>
               ) : proofs.length === 0 ? (
-                <tr><td colSpan={5} className="px-6 py-12 text-center text-slate-400">No pending proofs to review.</td></tr>
+                <tr><td colSpan={6} className="px-6 py-12 text-center text-slate-400">No pending proofs to review.</td></tr>
               ) : proofs.map((proof) => (
                 <tr key={proof.id} className="hover:bg-slate-50 transition-colors">
                   <td className="px-6 py-4">
@@ -74,7 +93,7 @@ export default function AdminProofs() {
                     <div className="font-bold text-slate-900">{proof.job_title}</div>
                   </td>
                   <td className="px-6 py-4">
-                    <div className="text-sm text-slate-600 max-w-md truncate">{proof.proof_text}</div>
+                    <div className="text-sm text-slate-600 max-w-sm overflow-hidden text-ellipsis whitespace-nowrap" title={proof.proof_text}>{proof.proof_text}</div>
                     {proof.proof_image && (
                       <button
                         onClick={() => {
@@ -90,6 +109,19 @@ export default function AdminProofs() {
                   </td>
                   <td className="px-6 py-4">
                     <div className="font-bold text-emerald-600">{formatCurrency(proof.reward || 0)}</div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <textarea
+                      defaultValue={proof.admin_notes || ''}
+                      onBlur={(e) => {
+                        if (e.target.value !== proof.admin_notes) {
+                          handleSaveNotes(proof.id, e.target.value);
+                        }
+                      }}
+                      placeholder="Add an internal note..."
+                      className="w-full text-sm p-2 border border-slate-200 rounded outline-none focus:border-indigo-500 bg-white"
+                      rows={2}
+                    />
                   </td>
                   <td className="px-6 py-4 text-right space-x-2">
                     <button

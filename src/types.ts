@@ -35,6 +35,7 @@ export interface Proof {
   proof_image?: string;
   status: 'pending' | 'approved' | 'rejected';
   rejection_reason?: string;
+  admin_notes?: string;
   created_at: string;
   user_name?: string;
   job_title?: string;

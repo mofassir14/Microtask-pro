@@ -4,6 +4,7 @@ import { useAuth } from '../AuthContext';
 import { useSettings } from '../SettingsContext';
 import { LayoutDashboard, Briefcase, Wallet, ArrowUpCircle, Users, Settings, LogOut, Shield, Menu, X, Lock, ShieldAlert } from 'lucide-react';
 import { cn, formatCurrency } from '../lib/utils';
+import NotificationBell from './NotificationBell';
 
 export default function Navbar() {
   const { user, logout } = useAuth();
@@ -87,6 +88,7 @@ export default function Navbar() {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-4">
+            <NotificationBell />
             <Link to="/profile" className="flex flex-col items-end hover:opacity-80 transition-opacity">
               <span className="text-xs sm:text-sm font-semibold text-slate-900 truncate max-w-[80px] sm:max-w-none">{user?.name}</span>
               <span className="text-[10px] sm:text-xs text-indigo-600 font-bold">{formatCurrency(user?.balance)}</span>

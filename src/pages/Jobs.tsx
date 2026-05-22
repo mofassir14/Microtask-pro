@@ -212,6 +212,21 @@ export default function Jobs() {
         </AnimatePresence>
 
         <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
+          <button
+            onClick={() => setHideFull(!hideFull)}
+            className={cn(
+              "px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap border flex items-center gap-2",
+              hideFull 
+                ? "bg-amber-50 border-amber-200 text-amber-700 shadow-sm" 
+                : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-amber-200"
+            )}
+          >
+            <Users className={cn("w-4 h-4", hideFull ? "text-amber-600" : "text-slate-400")} />
+            Hide Full Jobs
+          </button>
+          
+          <div className="w-px h-8 bg-slate-200 mx-1 hidden sm:block" />
+
           {categories.map(cat => (
             <button
               key={cat}
